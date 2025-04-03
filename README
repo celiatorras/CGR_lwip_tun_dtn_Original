@@ -1,0 +1,59 @@
+OPENING A TUN INTERFACE AND ASSIGNING AN IPV6 ADDRESS TO IT
+
+```bash     
+sudo ip tuntap add dev tun0 mode tun
+sudo ip addr add 10.0.0.1/24 dev tun0
+sudo ip -6 addr add fd00::1/64 dev tun0
+sudo ip link set dev tun0 up
+```
+
+COMPILING AND RUNNING THE PROJECT
+
+```bash     
+make clean
+make 
+sudo ./lwip_tun
+```
+
+AVAILABLE OPTIONS IN LWIP
+
+From the lwIP Wiki:
+
+```
+Enabling and disabling modules. You can tune your code size by only compiling the features you really need. The following is a list of what gets compiled in "out of the box" with lwIP.
+
+Default inclusions:
+  *  ARP (LWIP_ARP)
+  *  IP and fragmentation (IP_FRAG) and reassembly (IP_REASSEMBLY)
+     Raw IP PCB support (LWIP_RAW)
+  *  UDP (LWIP_UDP) and UDP-Lite (LWIP_UDPLITE)
+  *  TCP (LWIP_TCP) -- this is a big one!
+  *  Statistics (LWIP_STATS)
+
+Default exclusions:
+  *  DHCP (LWIP_DHCP)
+  *  AUTOIP (LWIP_AUTOIP)
+  *  SNMP (LWIP_SNMP)
+  *  IGMP (LWIP_IGMP)
+  *  PPP (PPP_SUPPORT)
+
+If you would like to change this, then you just need to set the options listed below. For example, if you would like to disable UDP and enable DHCP, the following lwipopts.h file would do it:
+
+// Disable UDP
+ #define LWIP_UDP 0
+ 
+ // Enable DHCP
+ #define LWIP_DHCP 1
+ 
+Fine-tuning even more:
+To see the options that you can set, open lwip/src/include/lwip/opt.h. This file is fully commented and explains how many of the options are used.
+```
+
+As described, a lwipopts.h file must be created for each lwIP project, specifying the features that are needed or not needed.
+The opt.h, containing all possible features and parameters to lwIP can be found, as mentioned under lwip/src/include/lwip/opt.h.
+
+CURRENT PROGRESS OF THIS IMPLEMENTATION
+
+The project currently reads incoming IP packets from the TUN interface, passes them to lwIP for processing and sends any outgoing responses back through the same TUN interface, effectively creating a user-space network stack.
+
+The Code enables a dual stack running IPv4 and IPv6 alike.
