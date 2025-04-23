@@ -58,3 +58,11 @@ To see the options that you can set, open lwip/src/include/lwip/opt.h. This file
 
 As described, a lwipopts.h file must be created for each lwIP project, specifying the features that are needed or not needed.
 The opt.h, containing all possible features and parameters to lwIP can be found, as mentioned under lwip/src/include/lwip/opt.h.
+
+## AUTHORS
+
+
+
+## FUNDING
+
+This research was funded in part by the Spanish MCIU/AEI/10.13039/501100011033/ FEDER/UE through project PID2023-146378NB-I00, and by Secretaria d'Universitats i Recerca del departament d'Empresa i Coneixement de la Generalitat de Catalunya with the grant number 2021 SGR 00330
