@@ -2,8 +2,8 @@
 #include "dtn_controller.h"
 #include "dtn_routing.h"
 #include "dtn_storage.h"
-#include <stdlib.h> // malloc, free
-#include <stdio.h>  // printf
+#include <stdlib.h> 
+#include <stdio.h>  
 
 DTN_Module* dtn_module_init(void) {
     printf("Initializing DTN Module...\n");
@@ -13,20 +13,17 @@ DTN_Module* dtn_module_init(void) {
         return NULL;
     }
 
-    // Initialize pointers to NULL first
     module->controller = NULL;
     module->routing = NULL;
     module->storage = NULL;
 
-    // Create components
     module->controller = dtn_controller_create(module);
     module->routing = dtn_routing_create(module);
     module->storage = dtn_storage_create(module);
 
-    // Check if component creation failed
     if (!module->controller || !module->routing || !module->storage) {
         fprintf(stderr, "Failed to create one or more DTN components.\n");
-        dtn_module_cleanup(module); // Cleanup partially created module
+        dtn_module_cleanup(module); 
         return NULL;
     }
 
@@ -38,11 +35,9 @@ void dtn_module_cleanup(DTN_Module* module) {
     if (!module) return;
     printf("Cleaning up DTN Module...\n");
 
-    // Destroy components in reverse order perhaps (or doesn't matter here)
     dtn_controller_destroy(module->controller);
     dtn_routing_destroy(module->routing);
     dtn_storage_destroy(module->storage);
 
-    // Free the main module struct itself
     free(module);
 }
