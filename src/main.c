@@ -6,6 +6,7 @@
 #include <sys/ioctl.h> 
 #include <linux/if.h>  
 #include <linux/if_tun.h>
+#include <sys/stat.h>
 #include <errno.h>     
 #include <sys/select.h> 
 #include <sys/time.h>  
@@ -29,6 +30,7 @@
 #include "dtn_routing.h"    
 #include "dtn_icmpv6.h" 
 #include "raw_socket.h"
+#include "dtn_storage.h"
 
 // Constants
 #define TUN_IFNAME "tun0"
@@ -121,6 +123,16 @@ err_t tunif_init(struct netif *netif) {
 
 int main() {
     lwip_init();
+
+    // Create DTN storage directory if it doesn't exist
+    struct stat st = {0};
+    if (stat(STORAGE_DIR, &st) == -1) {
+        printf("Creating DTN storage directory: %s\n", STORAGE_DIR);
+        if (mkdir(STORAGE_DIR, 0755) != 0) {
+            fprintf(stderr, "Failed to create DTN storage directory: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+    }
 
     global_dtn_module = dtn_module_init(); 
     if (!global_dtn_module) {
