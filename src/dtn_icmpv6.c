@@ -10,6 +10,11 @@
 #include <string.h>
 #include <stdio.h>
 #include "raw_socket.h"
+#include "dtn_storage.h"
+#include "dtn_module.h"
+#include "dtn_controller.h" 
+
+extern void dtn_storage_delete_packet_by_ip_header(Storage_Function* storage, struct ip6_hdr* orig_ip6hdr);
 
 // Structure for DTN custom ICMPv6 message payload
 #pragma pack(1)
@@ -56,7 +61,7 @@ static err_t dtn_icmpv6_send_message(struct netif *netif, struct pbuf *p, u8_t t
 
     ip6_addr_t src_addr, dest_addr;
     
-    ip6_addr_copy(src_addr, netif->ip6_addr[0]);
+    ip6_addr_copy(src_addr, netif->ip6_addr[1]);
     
     IP6_ADDR(&dest_addr, 
              orig_ip6hdr->src.addr[0], 
@@ -140,33 +145,121 @@ dtn_icmpv6_send_pck_deleted(struct netif *netif, struct pbuf *p, u8_t code, u8_t
     dtn_icmpv6_send_message(netif, p, ICMP6_TYPE_DTN_PCK_DELETED, code, reason);
 }
 
+// Extract original IPv6 header from an ICMPv6 message
+static struct ip6_hdr* extract_original_header(struct icmp6_hdr *icmp6hdr) {
+    // Skip ICMP header and DTN payload to get to the original IPv6 header
+    dtn_icmpv6_payload_t *dtn_payload = (dtn_icmpv6_payload_t *)(icmp6hdr + 1);
+    return (struct ip6_hdr *)((u8_t *)dtn_payload + sizeof(dtn_icmpv6_payload_t));
+}
+
+// Convert a packed IPv6 address to an ip6_addr_t structure
+static void packed_ip6_addr_to_ip6_addr_t(const u32_t packed_addr[4], ip6_addr_t *ip6_addr) {
+    IP6_ADDR(ip6_addr, packed_addr[0], packed_addr[1], packed_addr[2], packed_addr[3]);
+}
+
 // Process incoming DTN ICMPv6 message
-u8_t 
-dtn_icmpv6_process(struct pbuf *p, struct netif *inp_netif)
+u8_t dtn_icmpv6_process(struct pbuf *p, struct netif *inp_netif)
 {
+    extern DTN_Module* global_dtn_module;
+    
+    if (!p || !p->payload || !global_dtn_module || !global_dtn_module->storage || !global_dtn_module->controller) {
+        return 0;
+    }
+    
     struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)p->payload;
     dtn_icmpv6_payload_t *dtn_payload;
     
     // Check if this is a DTN ICMPv6 message
     switch (icmp6hdr->type) {
-        case ICMP6_TYPE_DTN_PCK_RECEIVED:
-        case ICMP6_TYPE_DTN_PCK_FORWARDED:
-        case ICMP6_TYPE_DTN_PCK_DELIVERED:
-        case ICMP6_TYPE_DTN_PCK_DELETED:
+        case ICMP6_TYPE_DTN_PCK_RECEIVED: {
             dtn_payload = (dtn_icmpv6_payload_t *)(icmp6hdr + 1);
             
             char src_addr_str[IP6ADDR_STRLEN_MAX] = {0};
             ip6addr_ntoa_r(ip6_current_src_addr(), src_addr_str, sizeof(src_addr_str));
             
-            printf("DTN ICMPv6: Received type %d code %d from %s, timestamp %u, reason %d\n", 
-                    icmp6hdr->type, icmp6hdr->code, src_addr_str, 
-                    dtn_payload->timestamp, dtn_payload->reason_code);
+            printf("DTN ICMPv6: Received PCK-RECEIVED type %d code %d from %s, timestamp %u, reason %d\n", 
+                   icmp6hdr->type, icmp6hdr->code, src_addr_str, 
+                   dtn_payload->timestamp, dtn_payload->reason_code);
             
-            // Here, the message would be processed and actions would be taken accoring to the code.
-            // For future work.
+            // Extract original IPv6 header
+            struct ip6_hdr *orig_ip6hdr = extract_original_header(icmp6hdr);
+            
+            // Delete the stored packet as next hop has confirmed reception
+            dtn_storage_delete_packet_by_ip_header(global_dtn_module->storage, orig_ip6hdr);
+            
+            // Remove tracking for this destination
+            ip6_addr_t dest_addr;
+            
+            // Create a temporary copy to avoid unaligned pointer access
+            u32_t temp_addr[4];
+            memcpy(temp_addr, orig_ip6hdr->dest.addr, sizeof(temp_addr));
+            packed_ip6_addr_to_ip6_addr_t(temp_addr, &dest_addr);
+            
+            // Remove destination from forwarding tracking list
+            dtn_controller_remove_tracking(global_dtn_module->controller, &dest_addr);
+            
+            // Create a copy of the received message to forward the "delivered" status to the previous node
+            struct pbuf *delivered_pkt = pbuf_alloc(PBUF_RAW, p->tot_len, PBUF_RAM);
+            if (delivered_pkt != NULL) {
+                if (pbuf_copy(delivered_pkt, p) == ERR_OK) {
+                    // Modify the header to change from RECEIVED to DELIVERED
+                    struct icmp6_hdr *new_icmp6hdr = (struct icmp6_hdr *)delivered_pkt->payload;
+                    new_icmp6hdr->type = ICMP6_TYPE_DTN_PCK_DELIVERED;
+                    new_icmp6hdr->code = ICMP6_CODE_DTN_NO_INFO;
+                    
+                    ip6_addr_t prev_node_addr;
+                    
+                    memcpy(temp_addr, orig_ip6hdr->src.addr, sizeof(temp_addr));
+                    packed_ip6_addr_to_ip6_addr_t(temp_addr, &prev_node_addr);
+                    
+                    // Send the modified message via raw socket
+                    raw_socket_send_ipv6(delivered_pkt, &prev_node_addr);
+                }
+                pbuf_free(delivered_pkt);
+            }
             
             return 1;
+        }
+        
+        case ICMP6_TYPE_DTN_PCK_FORWARDED: {
+            dtn_payload = (dtn_icmpv6_payload_t *)(icmp6hdr + 1);
+            
+            char src_addr_str[IP6ADDR_STRLEN_MAX] = {0};
+            ip6addr_ntoa_r(ip6_current_src_addr(), src_addr_str, sizeof(src_addr_str));
+            
+            printf("DTN ICMPv6: Received PCK-FORWARDED type %d code %d from %s, timestamp %u, reason %d\n", 
+                   icmp6hdr->type, icmp6hdr->code, src_addr_str, 
+                   dtn_payload->timestamp, dtn_payload->reason_code);
+                   
+            return 1;
+        }
+        
+        case ICMP6_TYPE_DTN_PCK_DELIVERED: {
+            dtn_payload = (dtn_icmpv6_payload_t *)(icmp6hdr + 1);
+            
+            char src_addr_str[IP6ADDR_STRLEN_MAX] = {0};
+            ip6addr_ntoa_r(ip6_current_src_addr(), src_addr_str, sizeof(src_addr_str));
+            
+            printf("DTN ICMPv6: Received PCK-DELIVERED type %d code %d from %s, timestamp %u, reason %d\n", 
+                   icmp6hdr->type, icmp6hdr->code, src_addr_str, 
+                   dtn_payload->timestamp, dtn_payload->reason_code);
+            
+            return 1;
+        }
+        
+        case ICMP6_TYPE_DTN_PCK_DELETED: {
+            dtn_payload = (dtn_icmpv6_payload_t *)(icmp6hdr + 1);
+            
+            char src_addr_str[IP6ADDR_STRLEN_MAX] = {0};
+            ip6addr_ntoa_r(ip6_current_src_addr(), src_addr_str, sizeof(src_addr_str));
+            
+            printf("DTN ICMPv6: Received PCK-DELETED type %d code %d from %s, timestamp %u, reason %d\n", 
+                   icmp6hdr->type, icmp6hdr->code, src_addr_str, 
+                   dtn_payload->timestamp, dtn_payload->reason_code);
+            
+            return 1;
+        }
     }
     
-    return 0; // Not a DTN message
+    return 0; 
 }

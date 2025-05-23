@@ -416,3 +416,142 @@ void dtn_storage_free_retrieved_entry_struct(Stored_Packet_Entry* entry) {
         free(entry);
     }
 }
+
+Stored_Packet_Entry* dtn_storage_get_packet_copy_for_dest(Storage_Function* storage, const ip6_addr_t* target_dest) {
+    if (!storage || !target_dest || storage->packet_list_head == NULL) {
+        return NULL;
+    }
+
+    Stored_Packet_Entry* current = storage->packet_list_head;
+    
+    while(current != NULL) {
+        ip6_addr_t current_dest_nozone;
+        ip6_addr_t target_dest_nozone;
+
+        memcpy(&current_dest_nozone, &current->original_dest, sizeof(ip6_addr_t));
+        memcpy(&target_dest_nozone, target_dest, sizeof(ip6_addr_t));
+
+#if LWIP_IPV6_SCOPES
+        ip6_addr_set_zone(&current_dest_nozone, IP6_NO_ZONE);
+        ip6_addr_set_zone(&target_dest_nozone, IP6_NO_ZONE);
+#endif
+
+        if (ip6_addr_cmp(&current_dest_nozone, &target_dest_nozone)) {
+            // Found a match, create a new entry
+            Stored_Packet_Entry* copy = (Stored_Packet_Entry*)malloc(sizeof(Stored_Packet_Entry));
+            if (!copy) {
+                printf("DTN Storage: Failed to allocate memory for packet copy\n");
+                return NULL;
+            }
+            
+            // Copy the packet itself
+            struct pbuf* p_copy = pbuf_alloc(PBUF_RAW, current->p->tot_len, PBUF_RAM);
+            if (!p_copy) {
+                printf("DTN Storage: Failed to allocate pbuf for packet copy\n");
+                free(copy);
+                return NULL;
+            }
+            
+            if (pbuf_copy(p_copy, current->p) != ERR_OK) {
+                printf("DTN Storage: Failed to copy packet data\n");
+                pbuf_free(p_copy);
+                free(copy);
+                return NULL;
+            }
+            
+            copy->p = p_copy;
+            memcpy(&copy->original_dest, &current->original_dest, sizeof(ip6_addr_t));
+            copy->stored_time_ms = current->stored_time_ms;
+            copy->next = NULL;
+            strncpy(copy->filename, current->filename, MAX_PATH_LENGTH-1);
+            copy->filename[MAX_PATH_LENGTH-1] = '\0';
+            
+            char addr_str[IP6ADDR_STRLEN_MAX];
+            ip6addr_ntoa_r(&copy->original_dest, addr_str, sizeof(addr_str));
+            printf("DTN Storage: Created copy of packet for %s (original stored at %u)\n",
+                   addr_str, copy->stored_time_ms);
+            
+            return copy;
+        }
+        
+        current = current->next;
+    }
+    
+    return NULL; 
+}
+
+// Delete a packet by matching the IPv6 header
+void dtn_storage_delete_packet_by_ip_header(Storage_Function* storage, struct ip6_hdr* orig_ip6hdr) {
+    if (!storage || !orig_ip6hdr || !storage->packet_list_head) {
+        return;
+    }
+    
+    ip6_addr_t orig_src, orig_dest;
+    
+    IP6_ADDR(&orig_src, 
+             orig_ip6hdr->src.addr[0], 
+             orig_ip6hdr->src.addr[1], 
+             orig_ip6hdr->src.addr[2], 
+             orig_ip6hdr->src.addr[3]);
+             
+    IP6_ADDR(&orig_dest, 
+             orig_ip6hdr->dest.addr[0], 
+             orig_ip6hdr->dest.addr[1], 
+             orig_ip6hdr->dest.addr[2], 
+             orig_ip6hdr->dest.addr[3]);
+    
+    char orig_src_str[IP6ADDR_STRLEN_MAX] = {0};
+    char orig_dest_str[IP6ADDR_STRLEN_MAX] = {0};
+    ip6addr_ntoa_r(&orig_src, orig_src_str, sizeof(orig_src_str));
+    ip6addr_ntoa_r(&orig_dest, orig_dest_str, sizeof(orig_dest_str));
+    
+    printf("DTN Storage: Looking for stored packet matching src=%s, dest=%s\n", 
+           orig_src_str, orig_dest_str);
+    
+    Stored_Packet_Entry* current = storage->packet_list_head;
+    Stored_Packet_Entry* prev = NULL;
+    bool found = false;
+    
+    // Iterate through the stored packets
+    while (current != NULL) {
+        if (current->p && current->p->len >= IP6_HLEN) {
+            struct ip6_hdr* stored_ip6hdr = (struct ip6_hdr*)current->p->payload;
+            
+            // Compare source and destination addresses from the original packet
+            if (memcmp(&stored_ip6hdr->src, &orig_ip6hdr->src, sizeof(struct ip6_addr)) == 0 &&
+                memcmp(&stored_ip6hdr->dest, &orig_ip6hdr->dest, sizeof(struct ip6_addr)) == 0) {
+                
+                // Found matching packet
+                found = true;
+                
+                // Remove from list
+                if (prev == NULL) {
+                    storage->packet_list_head = current->next;
+                } else {
+                    prev->next = current->next;
+                }
+                
+                printf("DTN Storage: Deleting stored packet for %s (src=%s) as next hop confirmed reception\n", 
+                       orig_dest_str, orig_src_str);
+                
+                // Remove from disk
+                dtn_storage_remove_packet_from_disk(storage, current->filename);
+                
+                pbuf_free(current->p);
+                free(current);
+                
+                storage->stored_packets_count--;
+                
+                break;
+            }
+        }
+        
+        prev = current;
+        current = current->next;
+    }
+    
+    if (!found) {
+        printf("DTN Storage: No matching stored packet found for %s (src=%s)\n", 
+               orig_dest_str, orig_src_str);
+    }
+}

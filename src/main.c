@@ -38,7 +38,7 @@
 #define HOST_TUN_IPV6_ADDR "fd00::1"
 #define CONTACT_CHECK_INTERVAL_MS 1000
 
-static DTN_Module* global_dtn_module = NULL;
+DTN_Module* global_dtn_module = NULL;
 
 int tun_alloc(char *dev_name, int max_len);
 err_t tunif_output(struct netif *netif, struct pbuf *p);
