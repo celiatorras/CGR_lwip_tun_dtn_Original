@@ -516,11 +516,11 @@ void dtn_storage_delete_packet_by_ip_header(Storage_Function* storage, struct ip
     while (current != NULL) {
         if (current->p && current->p->len >= IP6_HLEN) {
             struct ip6_hdr* stored_ip6hdr = (struct ip6_hdr*)current->p->payload;
-            
-            // Compare source and destination addresses from the original packet
-            if (memcmp(&stored_ip6hdr->src, &orig_ip6hdr->src, sizeof(struct ip6_addr)) == 0 &&
-                memcmp(&stored_ip6hdr->dest, &orig_ip6hdr->dest, sizeof(struct ip6_addr)) == 0) {
-                
+
+            //1. same src/dst (zones stripped already)  
+            if (memcmp(&stored_ip6hdr->src,  &orig_ip6hdr->src,  16) == 0 &&
+            memcmp(&stored_ip6hdr->dest, &orig_ip6hdr->dest, 16) == 0) {
+ 
                 // Found matching packet
                 found = true;
                 

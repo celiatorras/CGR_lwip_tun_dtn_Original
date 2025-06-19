@@ -36,7 +36,8 @@ APP_SRC = \
     src/dtn_routing.c \
 	src/dtn_icmpv6.c \
 	src/raw_socket.c \
-    src/dtn_storage.c
+    src/dtn_storage.c \
+	src/dtn_custody.c
 
 SOURCES = $(APP_SRC) port/sys_arch.c $(LWIP_SRC)
 OBJECTS = $(SOURCES:.c=.o)

@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include "raw_socket.h"
 #include "lwip/sys.h"
+#include "dtn_custody.h"
 
 DTN_Controller *dtn_controller_create(DTN_Module *parent)
 {
@@ -284,6 +285,8 @@ void dtn_controller_process_incoming(DTN_Controller *controller, struct pbuf *p,
                 pbuf_free(p_copy);
             }
 
+            ip6_addr_t my_addr = inp_netif->ip6_addr[1];
+            dtn_add_custodian_option(&p, &my_addr);
             err_t err = raw_socket_send_ipv6(p, &temp_dest_addr) == 0 ? ERR_OK : ERR_IF;
             if (err != ERR_OK)
             {
@@ -435,6 +438,8 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
                             pbuf_free(p_copy);
                         }
 
+                        ip6_addr_t my_addr = netif_out->ip6_addr[1];
+                        dtn_add_custodian_option(&p_to_fwd, &my_addr);
                         err_t err = raw_socket_send_ipv6(p_to_fwd, &contact->node_addr) == 0 ? ERR_OK : ERR_IF;
                         if (err != ERR_OK)
                         {

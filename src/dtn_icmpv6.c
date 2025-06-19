@@ -13,6 +13,7 @@
 #include "dtn_storage.h"
 #include "dtn_module.h"
 #include "dtn_controller.h" 
+#include "dtn_custody.h"
 
 extern void dtn_storage_delete_packet_by_ip_header(Storage_Function* storage, struct ip6_hdr* orig_ip6hdr);
 
@@ -63,11 +64,13 @@ static err_t dtn_icmpv6_send_message(struct netif *netif, struct pbuf *p, u8_t t
     
     ip6_addr_copy(src_addr, netif->ip6_addr[1]);
     
-    IP6_ADDR(&dest_addr, 
-             orig_ip6hdr->src.addr[0], 
-             orig_ip6hdr->src.addr[1], 
-             orig_ip6hdr->src.addr[2], 
-             orig_ip6hdr->src.addr[3]);
+    if (!dtn_extract_custodian_option(p, &dest_addr)) {
+        IP6_ADDR(&dest_addr, 
+                 orig_ip6hdr->src.addr[0],
+                 orig_ip6hdr->src.addr[1],
+                 orig_ip6hdr->src.addr[2],
+                 orig_ip6hdr->src.addr[3]);
+    }
     
     // Calculate checksum
     icmp6hdr->chksum = 0;
