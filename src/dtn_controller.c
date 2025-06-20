@@ -73,13 +73,31 @@ static bool should_attempt_forward(DTN_Controller *controller, const ip6_addr_t 
 #endif
                 u32_t time_since_last_attempt = current_time - controller->forwarding_attempts[i].last_attempt_time;
 
-                if (controller->forwarding_attempts[i].retry_count >= MAX_FORWARDING_RETRIES)
-                {
-                    return false; 
-                }
-
                 if (time_since_last_attempt >= FORWARDING_RETRY_DELAY_MS)
                 {
+                    if (controller->forwarding_attempts[i].retry_count >= MAX_FORWARDING_RETRIES)
+                    {
+                        // Max retries reached, delete packet from storage
+                        Storage_Function *storage = controller->parent_module->storage;
+                        if (storage) {
+                            Stored_Packet_Entry *expired_packet = dtn_storage_retrieve_packet_for_dest(storage, dest_addr);
+                            if (expired_packet) {
+                                char addr_str[IP6ADDR_STRLEN_MAX];
+                                ip6addr_ntoa_r(dest_addr, addr_str, sizeof(addr_str));
+                                printf("DTN Controller: Deleting packet for %s after %d failed transmission attempts\n", 
+                                       addr_str, MAX_FORWARDING_RETRIES);
+                                
+                                // Free the packet and entry
+                                pbuf_free(expired_packet->p);
+                                dtn_storage_free_retrieved_entry_struct(expired_packet);
+                            }
+                        }
+                        
+                        // Remove from tracking list
+                        controller->forwarding_attempts[i].is_valid = false;
+                        return false; 
+                    }
+                    
                     controller->forwarding_attempts[i].last_attempt_time = current_time;
                     controller->forwarding_attempts[i].retry_count++;
                     return true;
