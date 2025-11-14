@@ -273,7 +273,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
 
     char dst_s[INET6_ADDRSTRLEN];  //we need the destination node in string format to convert into node id
 
-    if (ip6_addr_to_str(&dest_ip, dst_s, sizeof(dst_s)) != 0) { 
+    if (ip6_addr_to_str(dest_ip, dst_s, sizeof(dst_s)) != 0) { 
         fprintf(stderr, "ip6_addr_to_str dest failed\n"); return 1; 
     }
 
@@ -330,13 +330,21 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     Py_DECREF(args_yen);
 
     // ipv6_packet
-    long deadline = hoplim*10;                      //multiplying factor to transform to lifetime?
-    uint8_t tc = (uint8_t)((v_tc_fl >> 20) & 0xFF); // traffic class (8 bits) 
+    uint8_t hoplim_val = 0;
+    uint32_t v_tc_fl_val = 0;
+    uint16_t plen_val = 0;
+
+    if (hoplim != NULL) hoplim_val = *hoplim;
+    if (v_tc_fl != NULL) v_tc_fl_val = *v_tc_fl;
+    if (plen != NULL) plen_val = *plen;
+
+    long deadline = hoplim_val*10;                      //multiplying factor to transform to lifetime?
+    uint8_t tc = (uint8_t)((v_tc_fl_val >> 20) & 0xFF); // traffic class (8 bits) 
     uint8_t dscp = (uint8_t)(tc >> 2);              // DSCP = TC[7:2] (6 bits)
 
     PyObject *args_pkt = PyTuple_New(4);
     PyTuple_SetItem(args_pkt, 0, PyLong_FromLong(dest_node_id));
-    PyTuple_SetItem(args_pkt, 1, PyLong_FromLong(plen));
+    PyTuple_SetItem(args_pkt, 1, PyLong_FromLong(plen_val));
     PyTuple_SetItem(args_pkt, 2, PyLong_FromLong(deadline));
     PyTuple_SetItem(args_pkt, 3, PyLong_FromLong(dscp));
     PyObject *ipv6pkt = PyObject_CallObject(py_ipv6_packet, args_pkt);
@@ -556,8 +564,8 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
         }
 
         #if LWIP_IPV6_SCOPES
-            ip6_addr_set_zone(&from_node, IP6_NO_ZONE);
-            ip6_addr_set_zone(&to_node, IP6_NO_ZONE);
+            ip6_addr_set_zone(&from_ip6, IP6_NO_ZONE);
+            ip6_addr_set_zone(&to_ip6, IP6_NO_ZONE);
         #endif
 
         // Afegim el contacte: node_addr = 'to', next_hop = 'from'
