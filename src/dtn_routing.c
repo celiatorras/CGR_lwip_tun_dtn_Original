@@ -41,7 +41,7 @@ Routing_Function* dtn_routing_create(DTN_Module* parent) {
         printf("DTN Routing Function created. Mode: %s\n", routing->routing_algorithm_name);
         
         //We save the contacts from the contact plan in the contact_list_head
-        const char *contacts_file = "../py_cgr/contact_plans/cgr_tutorial_1.txt";
+        const char *contacts_file = "py_cgr/contact_plans/cgr_tutorial_1.txt";
         int nloaded = dtn_routing_load_contacts(routing, contacts_file);
         if (nloaded < 0) {
             fprintf(stderr, "DTN Routing: error loading contact plan %s\n", contacts_file);
@@ -280,28 +280,28 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     printf("local: %s\n", CURR_NODE_ADDR);
     printf("dst: %s\n", dst_s);
 
-    //python initialize
     Py_Initialize();
     if (!Py_IsInitialized()) {
         fprintf(stderr, "Python not initialized\n");
         return 1;
     }
-
     fprintf(stderr, "[DBG] Python initialized OK\n");
 
     PyObject *sys_path = PySys_GetObject("path");
-    PyObject *py_pth = PyUnicode_FromString("py_cgr"); 
+    PyObject *py_pth = PyUnicode_FromString("py_cgr");
     PyList_Append(sys_path, py_pth);
     Py_DECREF(py_pth);
 
     PyObject *pModule = PyImport_ImportModule("py_cgr_lib.py_cgr_lib");
     if (!pModule) {
+        fprintf(stderr, "[ERR] ERROR: cannot import py_cgr_lib.py_cgr_lib\n");
         PyErr_Print();
-        fprintf(stderr, "ERROR: cannot import py_cgr_lib.py_cgr_lib\n");
         Py_Finalize();
         return 1;
+    } else {
+        fprintf(stderr, "[DBG] Imported module OK: %p\n", (void*)pModule);
     }
-
+    
     // to use python functions we need time in double format
     u32_t current_time = sys_now(); // in milliseconds
     double curr_time = ((double) current_time)/1000;
@@ -314,22 +314,66 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     // cp_load
     PyObject *args_load = PyTuple_New(3);
     PyTuple_SetItem(args_load, 0, PyUnicode_FromString("py_cgr/contact_plans/cgr_tutorial_1.txt"));
-    PyTuple_SetItem(args_load, 1, PyLong_FromLong(MAX_LENGTH));
-    PyTuple_SetItem(args_load, 2, PyFloat_FromDouble(curr_time));
+    PyTuple_SetItem(args_load, 1, PyFloat_FromDouble(curr_time));
+    PyTuple_SetItem(args_load, 2, PyLong_FromLong(MAX_LENGTH));
     PyObject *contact_plan = PyObject_CallObject(py_cp_load, args_load);
+    if (!contact_plan) {
+    fprintf(stderr, "[ERR] cp_load returned NULL\n");
+    PyErr_Print();
+    Py_DECREF(pModule);
+    Py_Finalize();
+    return 1;
+    }
+    PyObject *repr_cp = PyObject_Repr(contact_plan);
+    if (repr_cp) {
+        const char *s = PyUnicode_AsUTF8(repr_cp);
+        fprintf(stderr, "[DBG] contact_plan repr: %s\n", s ? s : "<NULL>");
+        Py_DECREF(repr_cp);
+    } else {
+        fprintf(stderr, "[DBG] contact_plan repr failed\n");
+        PyErr_Print();
+    }
+
     Py_DECREF(args_load);
 
     // cgr_yen
     long curr_node_id = ipv6_to_nodeid(CURR_NODE_ADDR);
     long dest_node_id = ipv6_to_nodeid(dst_s);
 
-    PyObject *args_yen = PyTuple_New(5);
-    PyTuple_SetItem(args_yen, 0, PyLong_FromLong(curr_node_id));
-    PyTuple_SetItem(args_yen, 1, PyLong_FromLong(dest_node_id));
-    PyTuple_SetItem(args_yen, 2, PyFloat_FromDouble(curr_time));
-    PyTuple_SetItem(args_yen, 3, contact_plan);
-    PyTuple_SetItem(args_yen, 4, PyLong_FromLong(10)); 
+    fprintf(stderr, "[DBG] call cgr_yen: curr_node_id=%ld dest_node_id=%ld curr_time=%f\n",
+        curr_node_id, dest_node_id, curr_time);
+
+    PyObject *args_yen = PyTuple_New(6);
+    PyTuple_SetItem(args_yen, 0, PyFloat_FromDouble(curr_time));
+    PyTuple_SetItem(args_yen, 1, PyLong_FromLong(curr_node_id));
+    PyTuple_SetItem(args_yen, 2, PyLong_FromLong(dest_node_id));
+    PyTuple_SetItem(args_yen, 3, PyFloat_FromDouble(curr_time));
+    PyTuple_SetItem(args_yen, 4, contact_plan);
+    PyTuple_SetItem(args_yen, 5, PyLong_FromLong(10)); 
     PyObject *routes = PyObject_CallObject(py_cgr_yen, args_yen);
+    if (!routes) {
+    fprintf(stderr, "[ERR] cgr_yen returned NULL\n");
+    PyErr_Print();
+    Py_DECREF(contact_plan);
+    Py_DECREF(pModule);
+    Py_Finalize();
+    return 1;
+    }
+    PyObject *repr_r = PyObject_Repr(routes);
+    if (repr_r) {
+        const char *sr = PyUnicode_AsUTF8(repr_r);
+        fprintf(stderr, "[DBG] routes repr: %s\n", sr ? sr : "<NULL>");
+        Py_DECREF(repr_r);
+    } else {
+        fprintf(stderr, "[DBG] routes repr failed\n");
+        PyErr_Print();
+    }
+    if (PyList_Check(routes)) {
+        fprintf(stderr, "[DBG] routes length: %ld\n", PyList_Size(routes));
+    } else {
+        fprintf(stderr, "[DBG] routes is not a list (type=%s)\n", routes->ob_type->tp_name);
+    }
+
     Py_DECREF(args_yen);
 
     // ipv6_packet
@@ -345,12 +389,32 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     uint8_t tc = (uint8_t)((v_tc_fl_val >> 20) & 0xFF); // traffic class (8 bits) 
     uint8_t dscp = (uint8_t)(tc >> 2);              // DSCP = TC[7:2] (6 bits)
 
-    PyObject *args_pkt = PyTuple_New(4);
-    PyTuple_SetItem(args_pkt, 0, PyLong_FromLong(dest_node_id));
-    PyTuple_SetItem(args_pkt, 1, PyLong_FromLong(plen_val));
-    PyTuple_SetItem(args_pkt, 2, PyLong_FromLong(deadline));
-    PyTuple_SetItem(args_pkt, 3, PyLong_FromLong(dscp));
+    PyObject *args_pkt = PyTuple_New(5);
+    PyTuple_SetItem(args_pkt, 0, PyFloat_FromDouble(curr_time));
+    PyTuple_SetItem(args_pkt, 1, PyLong_FromLong(dest_node_id));
+    PyTuple_SetItem(args_pkt, 2, PyLong_FromLong(plen_val));
+    PyTuple_SetItem(args_pkt, 3, PyLong_FromLong(deadline));
+    PyTuple_SetItem(args_pkt, 4, PyLong_FromLong(dscp));
     PyObject *ipv6pkt = PyObject_CallObject(py_ipv6_packet, args_pkt);
+    if (!ipv6pkt) {
+    fprintf(stderr, "[ERR] ipv6_packet constructor returned NULL\n");
+    PyErr_Print();
+    Py_DECREF(routes);
+    Py_DECREF(contact_plan);
+    Py_DECREF(pModule);
+    Py_Finalize();
+    return 1;
+    }
+    PyObject *repr_pkt = PyObject_Repr(ipv6pkt);
+    if (repr_pkt) {
+        const char *sp = PyUnicode_AsUTF8(repr_pkt);
+        fprintf(stderr, "[DBG] ipv6pkt repr: %s\n", sp? sp : "<NULL>");
+        Py_DECREF(repr_pkt);
+    } else {
+        fprintf(stderr, "[DBG] ipv6pkt repr failed\n");
+        PyErr_Print();
+    }
+
     Py_DECREF(args_pkt);
 
     /* ------------------ fwd_candidate ------------------ */
@@ -447,15 +511,15 @@ long ipv6_to_nodeid(const char *ip6) {
 }
 
 //this function should be different for every node
-//for node 1 
+//for node 0 
 int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
 
     const char *addr_txt = NULL;
     switch (node_id) {
-        case 1: addr_txt = "fd00:01::1"; break; //next_hop = node 0
-        case 2: addr_txt = "fd00:01::2"; break; //next_hop = node 1 --> it will not happen
-        case 3: addr_txt = "fd00:12::2"; break; //next_hop = node 2
-        case 4: addr_txt = "fd00:23::3"; break; //next_hop = node 3
+        case 1: addr_txt = "fd00:01::1"; break;
+        case 2: addr_txt = "fd00:01::2"; break;
+        case 3: addr_txt = "fd00:12::2"; break;
+        case 4: addr_txt = "fd00:23::3"; break;
         default: return -1;
     }
 
