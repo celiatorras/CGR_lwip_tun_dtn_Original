@@ -26,8 +26,8 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
-#define TARGET_DTN_NODE_ADDR "fd00:33::2"
-#define CURR_NODE_ADDR "fd00:01::1"
+#define TARGET_DTN_NODE_ADDR "fd00::2"
+#define CURR_NODE_ADDR "fd00:01::2"
 #define MAX_LENGTH 5000
 
 // necessary changes made
@@ -287,8 +287,10 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         return 1;
     }
 
+    fprintf(stderr, "[DBG] Python initialized OK\n");
+
     PyObject *sys_path = PySys_GetObject("path");
-    PyObject *py_pth = PyUnicode_FromString("../py_cgr"); 
+    PyObject *py_pth = PyUnicode_FromString("py_cgr"); 
     PyList_Append(sys_path, py_pth);
     Py_DECREF(py_pth);
 
@@ -307,7 +309,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
 
     // cp_load
     PyObject *args_load = PyTuple_New(2);
-    PyTuple_SetItem(args_load, 0, PyUnicode_FromString("../py_cgr/contact_plans/cgr_tutorial_1.txt"));
+    PyTuple_SetItem(args_load, 0, PyUnicode_FromString("py_cgr/contact_plans/cgr_tutorial_1.txt"));
     PyTuple_SetItem(args_load, 1, PyLong_FromLong(MAX_LENGTH));
     PyObject *contact_plan = PyObject_CallObject(py_cp_load, args_load);
     Py_DECREF(args_load);
@@ -444,15 +446,15 @@ long ipv6_to_nodeid(const char *ip6) {
 }
 
 //this function should be different for every node
-//for node 0 
+//for node 1 
 int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
 
     const char *addr_txt = NULL;
     switch (node_id) {
-        case 1: addr_txt = "fd00:01::1"; break;
-        case 2: addr_txt = "fd00:01::2"; break;
-        case 3: addr_txt = "fd00:12::2"; break;
-        case 4: addr_txt = "fd00:23::3"; break;
+        case 1: addr_txt = "fd00:01::1"; break; //next_hop = node 0
+        case 2: addr_txt = "fd00:01::2"; break; //next_hop = node 1 --> it will not happen
+        case 3: addr_txt = "fd00:12::2"; break; //next_hop = node 2
+        case 4: addr_txt = "fd00:23::3"; break; //next_hop = node 3
         default: return -1;
     }
 
