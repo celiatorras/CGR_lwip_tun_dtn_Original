@@ -462,7 +462,6 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
 #endif
                         if (ip6_addr_cmp(&retrieved_dest_nozone, &local_lwip_addr))
                         {
-                            //si coincideix vol dir que és per al node local?
                             is_for_this_lwip_stack = true;
                         }
                     }

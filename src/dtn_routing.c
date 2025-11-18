@@ -397,13 +397,13 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     PyTuple_SetItem(args_pkt, 4, PyLong_FromLong(dscp));
     PyObject *ipv6pkt = PyObject_CallObject(py_ipv6_packet, args_pkt);
     if (!ipv6pkt) {
-    fprintf(stderr, "[ERR] ipv6_packet constructor returned NULL\n");
-    PyErr_Print();
-    Py_DECREF(routes);
-    Py_DECREF(contact_plan);
-    Py_DECREF(pModule);
-    Py_Finalize();
-    return 1;
+        fprintf(stderr, "[ERR] ipv6_packet constructor returned NULL\n");
+        PyErr_Print();
+        Py_DECREF(routes);
+        Py_DECREF(contact_plan);
+        Py_DECREF(pModule);
+        Py_Finalize();
+        return 1;
     }
     PyObject *repr_pkt = PyObject_Repr(ipv6pkt);
     if (repr_pkt) {
@@ -504,7 +504,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     Py_DECREF(candidates);
     Py_DECREF(pModule);
     Py_Finalize();
-    return 0;
+    return 1;
 }
 
 //AUX FUNCTIONS FOR CGR AND LOAD CONTACTS FROM FILE
