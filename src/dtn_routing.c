@@ -385,7 +385,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     if (v_tc_fl != NULL) v_tc_fl_val = *v_tc_fl;
     if (plen != NULL) plen_val = *plen;
 
-    long deadline = hoplim_val*10000;                      //multiplying factor to transform to lifetime?
+    long deadline = hoplim_val*100000;                      //multiplying factor to transform to lifetime?
     uint8_t tc = (uint8_t)((v_tc_fl_val >> 20) & 0xFF); // traffic class (8 bits) 
     uint8_t dscp = (uint8_t)(tc >> 2);              // DSCP = TC[7:2] (6 bits)
 
