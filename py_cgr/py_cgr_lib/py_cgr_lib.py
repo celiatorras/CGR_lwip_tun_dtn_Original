@@ -206,14 +206,21 @@ class ipv6_packet:
         # ipv6_packet primary block parameters
         self.dst = dst
         self.size = size
-        if priority == 8: self.priority = 0
-        if priority == 0: self.priority = 1
-        if priority == 46: self.priority = 2
-        self.deadline = deadline + time_now #hop_limit is used as deadlilne 
-
+        if priority == 8:
+            self.priority = 0
+        elif priority == 0:
+            self.priority = 1
+        elif priority == 46:
+            self.priority = 2
+        else:
+            self.priority = 1
+        self.deadline = deadline + time_now 
+        
         # computed parameters
         #self.sender = sender
         #self.evc = max(size*1.03, 100)
+        
+        print(f"[PYDBG] ipv6_paquet created: dst={self.dst} size={self.size} deadline={self.deadline} priority={self.priority}", flush=True, file=sys.stderr)
 
 
 # load contact plan file with the format:
@@ -528,7 +535,7 @@ def fwd_candidate(curr_time, curr_node, contact_plan, ipv6_packet, routes, exclu
                 if debug:
                     print("not candidate: contact in route tx to current node")
                 continue
-
+                
         # we discard routes not active right now
         first = route.hops[0]
         if not (first.start <= curr_time < first.end):

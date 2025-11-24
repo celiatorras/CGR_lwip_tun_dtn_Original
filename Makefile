@@ -66,12 +66,9 @@ clean:
 #EN ELS NODES DE LA SIMULACIÓ HEM DE CANVIAR EL PATH PER COMPILAR PYTHON:
 # CC = gcc
 
-# # Intentem obtenir automàticament includes/ldflags de python3-config
 # PY_INCLUDES := $(shell python3-config --includes)
 # PY_LDFLAGS  := $(shell python3-config --ldflags)
 
-# # Si python3-config no afegeix la llibreria python (-lpython3.12), la forcem
-# # i afegim altres libs típiques que poden faltar.
 # PY_LIBS := -lpython3.12 -lpthread -lutil
 
 # CFLAGS = -Wall \
@@ -84,7 +81,6 @@ clean:
 # 	-Ilwip/contrib/addons/ipv6_static_routing \
 # 	$(PY_INCLUDES)
 
-# # LDFLAGS per a l'enllaç final (inclou python ldflags i biblioteques forçades)
 # LDFLAGS = $(PY_LDFLAGS) $(PY_LIBS)
 
 # LWIP_SRC = \
