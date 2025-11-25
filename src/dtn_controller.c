@@ -325,7 +325,7 @@ void dtn_controller_process_incoming(DTN_Controller *controller, struct pbuf *p,
             }
 
             ip6_addr_t my_addr = inp_netif->ip6_addr[1];
-            dtn_add_custodian_option(&p, &my_addr);
+            dtn_update_or_add_custodian_option(&p, &my_addr);
             err_t err = raw_socket_send_ipv6(p, &temp_dest_addr) == 0 ? ERR_OK : ERR_IF;
             if (err != ERR_OK)
             {
@@ -458,7 +458,7 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
             pbuf_free(p_copy);
 
             ip6_addr_t my_addr = netif_out->ip6_addr[1];
-            dtn_add_custodian_option(&p_to_fwd, &my_addr);
+            dtn_update_or_add_custodian_option(&p_to_fwd, &my_addr);
 
             err_t err = raw_socket_send_ipv6(p_to_fwd, &next_hop_ip) == 0 ? ERR_OK : ERR_IF;
             if (err != ERR_OK)
@@ -469,7 +469,6 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
 
         }
         dtn_controller_remove_tracking(controller, &dest);
-        dtn_storage_remove_packet_from_disk(storage, packet->filename);
         dtn_storage_free_retrieved_entry_struct(packet);
         packet = packet->next;
     }
