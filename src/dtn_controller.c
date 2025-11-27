@@ -471,6 +471,7 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
         }
         dtn_controller_remove_tracking(controller, &dest);
         dtn_storage_free_retrieved_entry_struct(packet);
+        dtn_storage_remove_packet_from_disk(storage, packet->filename);
         packet = next_packet;
     }
 }

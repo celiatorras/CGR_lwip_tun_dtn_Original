@@ -484,7 +484,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
                 long next_node = PyLong_AsLong(pNextNode);
                 ip6_addr_t next_ip;
                 if (nodeid_to_ipv6(next_node, &next_ip) == 0) {
-                    //printf("Next hop node: %ld\n", next_node);
+                    memcpy(next_hop_ip, &next_ip, sizeof(ip6_addr_t));
                     char next_ip_s[INET6_ADDRSTRLEN];
                     if (ip6_addr_to_str(&next_ip, next_ip_s, sizeof(next_ip_s)) == 0) {
                         printf("Next hop ipv6: %s\n", next_ip_s);
@@ -570,24 +570,6 @@ long ipv6_to_nodeid(const char *ip6) {
     return -1;
 }
 
-/*long ipv6_to_nodeid(const char *ip6) {
-
-    // Node 0 (id = 1)
-    if (strcmp(ip6, "fd00:1::1") == 0) return 1;
-    if (strcmp(ip6, "fd00:1::1") == 0) return 1;
-
-    // Node 1 (id = 2)
-    if (strcmp(ip6, "fd00::2") == 0) return 2;
-
-    // Node 2 (id = 3)
-    if (strcmp(ip6, "fd00:22::2") == 0) return 3;
-
-    // Node 3 (id = 4)
-    if (strcmp(ip6, "fd00:33::2") == 0) return 4;
-
-    return -1;
-}*/
-
 //this function should be different for every node
 //for node 0 
 int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
@@ -600,16 +582,6 @@ int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
         case 4: addr_txt = "fd00:23::3"; break;
         default: return -1;
     }
-
-    /*
-    switch (node_id) {
-        case 1: addr_txt = "fd00:01::1"; break;
-        case 2: addr_txt = "fd00::2"; break;
-        case 3: addr_txt = "fd00:22::2"; break;
-        case 4: addr_txt = "fd00:33::2"; break;
-        default: return -1;
-    }
-    */
 
     unsigned char tmpbuf[16];
     if (inet_pton(AF_INET6, addr_txt, tmpbuf) != 1) {
