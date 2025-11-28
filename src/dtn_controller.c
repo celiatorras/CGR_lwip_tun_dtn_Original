@@ -326,7 +326,7 @@ void dtn_controller_process_incoming(DTN_Controller *controller, struct pbuf *p,
 
             ip6_addr_t my_addr = inp_netif->ip6_addr[1];
             dtn_update_or_add_custodian_option(&p, &my_addr);
-            err_t err = raw_socket_send_ipv6(p, &temp_dest_addr) == 0 ? ERR_OK : ERR_IF;
+            err_t err = raw_socket_send_ipv6(p, &next_hop_ip) == 0 ? ERR_OK : ERR_IF;
             if (err != ERR_OK)
             {
                 fprintf(stderr, "DTN Controller: Error sending packet via raw socket: %d.\n", err);
