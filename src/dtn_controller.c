@@ -217,7 +217,6 @@ void dtn_controller_process_incoming(DTN_Controller *controller, struct pbuf *p,
     memcpy(&temp_plen, &ip6hdr->_plen, sizeof(u16_t));
     memcpy(&temp_hoplim, &ip6hdr->_hoplim, sizeof(u8_t));
 
-
     Routing_Function *routing = controller->parent_module->routing;
     Storage_Function *storage = controller->parent_module->storage;
 
