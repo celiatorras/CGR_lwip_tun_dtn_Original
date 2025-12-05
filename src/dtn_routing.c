@@ -289,7 +289,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
 
     printf("local: %s\n", CURR_NODE_ADDR);
     printf("dst: %s\n", dst_s);
-    printf("sender: %s\n", sender_s)
+    printf("sender: %s\n", sender_s);
 
     Py_Initialize();
     if (!Py_IsInitialized()) {
@@ -441,7 +441,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     PyTuple_SetItem(args_fwd, 4, routes);
     PyTuple_SetItem(args_fwd, 5, excluded_nodes);
     PyObject *candidates = PyObject_CallObject(py_fwd_candidate, args_fwd);
-    
     if (candidates) {
     PyObject *repr_c = PyObject_Repr(candidates);
     const char *sc = PyUnicode_AsUTF8(repr_c);
@@ -486,7 +485,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     if (PyList_Check(candidates) && PyList_Size(candidates) > 0) {
         PyObject *first = PyList_GetItem(candidates, 0); /* borrowed reference */
         PyObject *pNextNode = PyObject_GetAttrString(first, "next_node"); /* new ref or NULL */
-        if (pNextNode) {+
+        if (pNextNode) {
             if (pNextNode == Py_None) {
                 printf("Next hop: None\n");
             } else if (PyLong_Check(pNextNode)) {
@@ -555,17 +554,22 @@ int ip6_addr_to_str(const ip6_addr_t *a, char *buf, size_t buflen) {
 
 long ipv6_to_nodeid(const char *ip6) {
 
+    // Node 0 (id = 1)
     if (strcmp(ip6, "fd00:01::1") == 0) return 1;
     if (strcmp(ip6, "fd00:1::1") == 0) return 1;
 
+    // Node 1 (id = 2)
     if (strcmp(ip6, "fd00:01::2") == 0) return 10;
+    if (strcmp(ip6, "fd00:1::2") == 0) return 10;
     if (strcmp(ip6, "fd00:12::1") == 0) return 12;
 
+    // Node 2 (id = 3)
     if (strcmp(ip6, "fd00:12::2") == 0) return 21;
     if (strcmp(ip6, "fd00:23::2") == 0) return 23;
 
+    // Node 3 (id = 4)
     if (strcmp(ip6, "fd00:23::3") == 0) return 32;
-
+    
     return -1;
 }
 

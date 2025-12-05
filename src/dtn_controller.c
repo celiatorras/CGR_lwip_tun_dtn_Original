@@ -417,12 +417,12 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
         memcpy(&plen, &ip6hdr->_plen, sizeof(u16_t));
         memcpy(&hoplim, &ip6hdr->_hoplim, sizeof(u8_t));
 
-        if (!dtn_extract_custodian_option(p, &temp_dest_sender)) {
-        memcpy(&temp_dest_sender, &temp_src_addr, sizeof(ip6_addr_t));
-    }
+        if (!dtn_extract_custodian_option(packet->p, &temp_dest_sender)) {
+          memcpy(&temp_dest_sender, &temp_src_addr, sizeof(ip6_addr_t));
+        }
 
         ip6_addr_t next_hop_ip;
-        int contact_available = dtn_routing_get_dtn_next_hop(routing, &v_tc_fl, &plen, &hoplim, &dest, &sender, &next_hop_ip);
+        int contact_available = dtn_routing_get_dtn_next_hop(routing, &v_tc_fl, &plen, &hoplim, &dest, &temp_dest_sender, &next_hop_ip);
 
         if (!contact_available) {
             dtn_storage_free_retrieved_entry_struct(packet);
@@ -454,7 +454,6 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
             if (p_copy && pbuf_copy(p_copy, p_to_fwd) == ERR_OK) 
             {
                 dtn_icmpv6_send_pck_received(netif_out, p_copy, ICMP6_CODE_DTN_NO_INFO);
-                //dtn_icmpv6_send_pck_delivered(netif_out, p_copy, ICMP6_CODE_DTN_NO_INFO);
             }
             pbuf_free(p_copy);
 
