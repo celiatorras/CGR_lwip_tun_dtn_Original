@@ -264,23 +264,28 @@ void dtn_controller_process_incoming(DTN_Controller *controller, struct pbuf *p,
         pbuf_free(q);
     }
 
-    // Check if it's for this LwIP stack
     bool is_for_this_lwip_stack = false;
-    ip6_addr_t local_lwip_addr;
-    if (ip6addr_aton("fd00::2", &local_lwip_addr))
-    {
-        ip6_addr_t dest_addr_nozone = temp_dest_addr;
+        ip6_addr_t local_lwip_addr_1, local_lwip_addr_2;
+        if (ip6addr_aton("fd00:01::2", &local_lwip_addr_1)) {
+            ip6_addr_t dest_nozone = temp_dest_addr;
 #if LWIP_IPV6_SCOPES
-        ip6_addr_set_zone(&dest_addr_nozone, IP6_NO_ZONE);
-        ip6_addr_set_zone(&local_lwip_addr, IP6_NO_ZONE);
+            ip6_addr_set_zone(&dest_nozone, IP6_NO_ZONE);
+            ip6_addr_set_zone(&local_lwip_addr_1, IP6_NO_ZONE);
 #endif
-        if (ip6_addr_cmp(&dest_addr_nozone, &local_lwip_addr))
-        {
-            is_for_this_lwip_stack = true;
+            if (ip6_addr_cmp(&dest_nozone, &local_lwip_addr_1)) {
+                is_for_this_lwip_stack = true;
+            }
         }
-    }
-
-    
+        if (ip6addr_aton("fd00:12::1", &local_lwip_addr_2)) {
+            ip6_addr_t dest_nozone = temp_dest_addr;
+#if LWIP_IPV6_SCOPES
+            ip6_addr_set_zone(&dest_nozone, IP6_NO_ZONE);
+            ip6_addr_set_zone(&local_lwip_addr_2, IP6_NO_ZONE);
+#endif
+            if (ip6_addr_cmp(&dest_nozone, &local_lwip_addr_2)) {
+                is_for_this_lwip_stack = true;
+            }
+        }
     if (is_for_this_lwip_stack)
     {
         // Create a copy of the packet for DTN-PCK-RECEIVED
@@ -437,14 +442,24 @@ void dtn_controller_attempt_forward_stored(DTN_Controller *controller, struct ne
         struct pbuf *p_to_fwd = packet->p;
 
         bool is_for_this_lwip_stack = false;
-        ip6_addr_t local_lwip_addr;
-        if (ip6addr_aton("fd00::2", &local_lwip_addr)) {
+        ip6_addr_t local_lwip_addr_1, local_lwip_addr_2;
+        if (ip6addr_aton("fd00:01::2", &local_lwip_addr_1)) {
             ip6_addr_t dest_nozone = dest;
 #if LWIP_IPV6_SCOPES
             ip6_addr_set_zone(&dest_nozone, IP6_NO_ZONE);
-            ip6_addr_set_zone(&local_lwip_addr, IP6_NO_ZONE);
+            ip6_addr_set_zone(&local_lwip_addr_1, IP6_NO_ZONE);
 #endif
-            if (ip6_addr_cmp(&dest_nozone, &local_lwip_addr)) {
+            if (ip6_addr_cmp(&dest_nozone, &local_lwip_addr_1)) {
+                is_for_this_lwip_stack = true;
+            }
+        }
+        if (ip6addr_aton("fd00:99::1", &local_lwip_addr_2)) {
+            ip6_addr_t dest_nozone = dest;
+#if LWIP_IPV6_SCOPES
+            ip6_addr_set_zone(&dest_nozone, IP6_NO_ZONE);
+            ip6_addr_set_zone(&local_lwip_addr_2, IP6_NO_ZONE);
+#endif
+            if (ip6_addr_cmp(&dest_nozone, &local_lwip_addr_2)) {
                 is_for_this_lwip_stack = true;
             }
         }

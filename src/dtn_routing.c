@@ -243,13 +243,6 @@ bool dtn_routing_is_dtn_destination(Routing_Function* routing, const ip6_addr_t*
     return ip6_addr_cmp(&local_dest_ip, &target_dtn_node);
 }
    
-/*need to add: 
-- version + traffic + flow
-- payload length
-- hop limit
-- current node (const previously defined)
-- destination address
-*/
 int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_t* plen, u8_t* hoplim, ip6_addr_t* dest_ip, ip6_addr_t* sender_ip, ip6_addr_t* next_hop_ip) {
     if (!routing || !v_tc_fl || !plen || !hoplim || !dest_ip || !next_hop_ip) {
         fprintf(stderr, "DTN Routing: Invalid arguments to get_dtn_next_hop.\n");
@@ -555,8 +548,8 @@ int ip6_addr_to_str(const ip6_addr_t *a, char *buf, size_t buflen) {
 long ipv6_to_nodeid(const char *ip6) {
 
     // Node 0 (id = 1)
-    if (strcmp(ip6, "fd00:01::1") == 0) return 1;
-    if (strcmp(ip6, "fd00:1::1") == 0) return 1;
+    if (strcmp(ip6, "fd00:01::1") == 0) return 01;
+    if (strcmp(ip6, "fd00:1::1") == 0) return 01;
 
     // Node 1 (id = 2)
     if (strcmp(ip6, "fd00:01::2") == 0) return 10;
@@ -577,7 +570,7 @@ int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
 
     const char *addr_txt = NULL;
     switch (node_id) {
-        case 1: addr_txt = "fd00:01::1"; break;
+        case 01: addr_txt = "fd00:01::1"; break;
         case 10: addr_txt = "fd00:01::2"; break;
         case 12: addr_txt = "fd00:12::1"; break;
         case 21: addr_txt = "fd00:12::2"; break;
