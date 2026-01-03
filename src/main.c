@@ -216,7 +216,7 @@ int main() {
 
     ip6_addr_t ip6addr_lwip_stack;
     if (!ip6addr_aton(HOST_LWIP_IPV6_ADDR, &ip6addr_lwip_stack)) {
-        fprintf(stderr, "FATAL: Failed to parse LwIP stack IPv6 address HOST_LWIP_IPV6_ADDR\n");
+        fprintf(stderr, "FATAL: Failed to parse LwIP stack IPv6 address %s\n", HOST_LWIP_IPV6_ADDR);
         netif_remove(&tun_netif); 
         close(tun_fd);
         dtn_module_cleanup(global_dtn_module);
@@ -227,89 +227,89 @@ int main() {
     err_t add_global_err = netif_add_ip6_address(&tun_netif, &ip6addr_lwip_stack, &assigned_idx_global);
 
     if (add_global_err == ERR_OK) {
-        printf("LwIP stack address HOST_LWIP_IPV6_ADDR added successfully at index %d.\n", assigned_idx_global);
+        printf("LwIP stack address %s added successfully at index %d.\n", HOST_LWIP_IPV6_ADDR, assigned_idx_global);
         if (assigned_idx_global >= 0 && netif_ip6_addr_state(&tun_netif, assigned_idx_global) != IP6_ADDR_INVALID) {
             netif_ip6_addr_set_state(&tun_netif, assigned_idx_global, IP6_ADDR_PREFERRED);
-            printf("  State for address HOST_LWIP_IPV6_ADDR (Index %d) set to PREFERRED.\n", assigned_idx_global);
+            printf("  State for address %s (Index %d) set to PREFERRED.\n", HOST_LWIP_IPV6_ADDR, assigned_idx_global);
         } else {
-            fprintf(stderr, "  WARNING: Address HOST_LWIP_IPV6_ADDR (Index %d) reported as added but state is invalid or index is negative.\n", assigned_idx_global);
+            fprintf(stderr, "  WARNING: Address %s (Index %d) reported as added but state is invalid or index is negative.\n", HOST_LWIP_IPV6_ADDR, assigned_idx_global);
         }
     } else {
-        fprintf(stderr, "WARNING: netif_add_ip6_address for HOST_LWIP_IPV6_ADDR failed with error code %d.\n", (int)add_global_err);
+        fprintf(stderr, "WARNING: netif_add_ip6_address for %s failed with error code %d.\n", HOST_LWIP_IPV6_ADDR, (int)add_global_err);
         s8_t found_idx_after_fail = netif_get_ip6_addr_match(&tun_netif, &ip6addr_lwip_stack);
         if (found_idx_after_fail >= 0) {
-            printf("  However, HOST_LWIP_IPV6_ADDR was found at Index %d after the reported failure.\n", found_idx_after_fail);
+            printf("  However, %s was found at Index %d after the reported failure.\n", HOST_LWIP_IPV6_ADDR, found_idx_after_fail);
             if (netif_ip6_addr_state(&tun_netif, found_idx_after_fail) != IP6_ADDR_INVALID &&
                 !ip6_addr_ispreferred(netif_ip6_addr_state(&tun_netif, found_idx_after_fail))) {
                 netif_ip6_addr_set_state(&tun_netif, found_idx_after_fail, IP6_ADDR_PREFERRED);
-                printf("  State for HOST_LWIP_IPV6_ADDR (Index %d) set to PREFERRED.\n", found_idx_after_fail);
+                printf("  State for %s (Index %d) set to PREFERRED.\n", HOST_LWIP_IPV6_ADDR, found_idx_after_fail);
             } else if (ip6_addr_ispreferred(netif_ip6_addr_state(&tun_netif, found_idx_after_fail))) {
-                printf("  Address HOST_LWIP_IPV6_ADDR (Index %d) was already preferred.\n", found_idx_after_fail);
+                printf("  Address %s (Index %d) was already preferred.\n", HOST_LWIP_IPV6_ADDR, found_idx_after_fail);
             }
         } else {
-            fprintf(stderr, "  And HOST_LWIP_IPV6_ADDR was NOT found by netif_get_ip6_addr_match after the reported failure.\n");
+            fprintf(stderr, "  And %s was NOT found by netif_get_ip6_addr_match after the reported failure.\n", HOST_LWIP_IPV6_ADDR);
         }
     }
 
     ip6_addr_t ip6addr_lwip_stack_enp0s9;
     if (!ip6addr_aton(HOST_enp0s9_IPV6_ADDR, &ip6addr_lwip_stack_enp0s9)) {
-        fprintf(stderr, "FATAL: Failed to parse Node 1 IPv6 address HOST_enp0s9_IPV6_ADDR\n");
+        fprintf(stderr, "FATAL: Failed to parse Node 1 IPv6 address %s\n", HOST_enp0s9_IPV6_ADDR);
     }
 
     s8_t assigned_idx_node_enp0s9 = -1; 
     err_t add_node_enp0s9_err = netif_add_ip6_address(&tun_netif, &ip6addr_lwip_stack_enp0s9, &assigned_idx_node_enp0s9);
 
     if (add_node_enp0s9_err == ERR_OK) {
-        printf("LwIP stack address HOST_enp0s9_IPV6_ADDR added successfully at index %d.\n", assigned_idx_node_enp0s9);
+        printf("LwIP stack address %s added successfully at index %d.\n", HOST_enp0s9_IPV6_ADDR, assigned_idx_node_enp0s9);
         if (assigned_idx_node_enp0s9 >= 0 && netif_ip6_addr_state(&tun_netif, assigned_idx_node_enp0s9) != IP6_ADDR_INVALID) {
             netif_ip6_addr_set_state(&tun_netif, assigned_idx_node_enp0s9, IP6_ADDR_PREFERRED);
-            printf("  State for address HOST_enp0s9_IPV6_ADDR (Index %d) set to PREFERRED.\n", assigned_idx_node_enp0s9);
+            printf("  State for address %s (Index %d) set to PREFERRED.\n", HOST_enp0s9_IPV6_ADDR, assigned_idx_node_enp0s9);
         } else {
-            fprintf(stderr, "  WARNING: Address HOST_enp0s9_IPV6_ADDR (Index %d) reported as added but state is invalid.\n", assigned_idx_node_enp0s9);
+            fprintf(stderr, "  WARNING: Address %s (Index %d) reported as added but state is invalid.\n", HOST_enp0s9_IPV6_ADDR, assigned_idx_node_enp0s9);
         }
     } else {
-        fprintf(stderr, "WARNING: netif_add_ip6_address for HOST_enp0s9_IPV6_ADDR failed with error code %d.\n", (int)add_node_enp0s9_err);
+        fprintf(stderr, "WARNING: netif_add_ip6_address for %s failed with error code %d.\n", HOST_enp0s9_IPV6_ADDR, (int)add_node_enp0s9_err);
         s8_t found_idx_enp0s9_after_fail = netif_get_ip6_addr_match(&tun_netif, &ip6addr_lwip_stack_enp0s9);
         if (found_idx_enp0s9_after_fail >= 0) {
-            printf("  However, HOST_enp0s9_IPV6_ADDR was found at Index %d after the reported failure.\n", found_idx_enp0s9_after_fail);
+            printf("  However, %s was found at Index %d after the reported failure.\n", HOST_enp0s9_IPV6_ADDR, found_idx_enp0s9_after_fail);
             if (netif_ip6_addr_state(&tun_netif, found_idx_enp0s9_after_fail) != IP6_ADDR_INVALID &&
                 !ip6_addr_ispreferred(netif_ip6_addr_state(&tun_netif, found_idx_enp0s9_after_fail))) {
                 netif_ip6_addr_set_state(&tun_netif, found_idx_enp0s9_after_fail, IP6_ADDR_PREFERRED);
-                printf("  State for HOST_enp0s9_IPV6_ADDR (Index %d) set to PREFERRED.\n", found_idx_enp0s9_after_fail);
+                printf("  State for %s (Index %d) set to PREFERRED.\n", HOST_enp0s9_IPV6_ADDR, found_idx_enp0s9_after_fail);
             }
         } else {
-            fprintf(stderr, "  And HOST_enp0s9_IPV6_ADDR was NOT found by netif_get_ip6_addr_match after the reported failure.\n");
+            fprintf(stderr, "  And %s was NOT found by netif_get_ip6_addr_match after the reported failure.\n", HOST_enp0s9_IPV6_ADDR);
         }
     }
 
     ip6_addr_t ip6addr_lwip_stack_enp0s8;
     if (!ip6addr_aton(HOST_enp0s8_IPV6_ADDR, &ip6addr_lwip_stack_enp0s8)) {
-        fprintf(stderr, "FATAL: Failed to parse Node IPv6 address HOST_enp0s8_IPV6_ADDR1 (enp0s8)\n");
+        fprintf(stderr, "FATAL: Failed to parse Node IPv6 address %s (enp0s8)\n", HOST_enp0s8_IPV6_ADDR);
     }
 
     s8_t assigned_idx_node_enp0s8 = -1; 
     err_t add_node_enp0s8_err = netif_add_ip6_address(&tun_netif, &ip6addr_lwip_stack_enp0s8, &assigned_idx_node_enp0s8);
 
     if (add_node_enp0s8_err == ERR_OK) {
-        printf("LwIP stack address HOST_enp0s8_IPV6_ADDR added successfully at index %d.\n", assigned_idx_node_enp0s8);
+        printf("LwIP stack address %s added successfully at index %d.\n", HOST_enp0s8_IPV6_ADDR, assigned_idx_node_enp0s8);
         if (assigned_idx_node_enp0s8 >= 0 && netif_ip6_addr_state(&tun_netif, assigned_idx_node_enp0s8) != IP6_ADDR_INVALID) {
             netif_ip6_addr_set_state(&tun_netif, assigned_idx_node_enp0s8, IP6_ADDR_PREFERRED);
-            printf("  State for address HOST_enp0s8_IPV6_ADDR (Index %d) set to PREFERRED.\n", assigned_idx_node_enp0s8);
+            printf("  State for address %s (Index %d) set to PREFERRED.\n", HOST_enp0s8_IPV6_ADDR, assigned_idx_node_enp0s8);
         } else {
-            fprintf(stderr, "  WARNING: Address HOST_enp0s8_IPV6_ADDR (Index %d) reported as added but state is invalid.\n", assigned_idx_node_enp0s8);
+            fprintf(stderr, "  WARNING: Address %s (Index %d) reported as added but state is invalid.\n", HOST_enp0s8_IPV6_ADDR, assigned_idx_node_enp0s8);
         }
     } else {
-        fprintf(stderr, "WARNING: netif_add_ip6_address for HOST_enp0s8_IPV6_ADDR failed with error code %d.\n", (int)add_node_enp0s8_err);
+        fprintf(stderr, "WARNING: netif_add_ip6_address for %s failed with error code %d.\n", HOST_enp0s8_IPV6_ADDR, (int)add_node_enp0s8_err);
         s8_t found_idx_enp0s8_after_fail = netif_get_ip6_addr_match(&tun_netif, &ip6addr_lwip_stack_enp0s8);
         if (found_idx_enp0s8_after_fail >= 0) {
-            printf("  However, HOST_enp0s8_IPV6_ADDR was found at Index %d after the reported failure.\n", found_idx_enp0s8_after_fail);
+            printf("  However, %s was found at Index %d after the reported failure.\n", HOST_enp0s8_IPV6_ADDR, found_idx_enp0s8_after_fail);
             if (netif_ip6_addr_state(&tun_netif, found_idx_enp0s8_after_fail) != IP6_ADDR_INVALID &&
                 !ip6_addr_ispreferred(netif_ip6_addr_state(&tun_netif, found_idx_enp0s8_after_fail))) {
                 netif_ip6_addr_set_state(&tun_netif, found_idx_enp0s8_after_fail, IP6_ADDR_PREFERRED);
-                printf("  State for HOST_enp0s8_IPV6_ADDR (Index %d) set to PREFERRED.\n", found_idx_enp0s8_after_fail);
+                printf("  State for %s (Index %d) set to PREFERRED.\n", HOST_enp0s8_IPV6_ADDR, found_idx_enp0s8_after_fail);
             }
         } else {
-            fprintf(stderr, "  And HOST_enp0s8_IPV6_ADDR was NOT found by netif_get_ip6_addr_match after the reported failure.\n");
+            fprintf(stderr, "  And %s was NOT found by netif_get_ip6_addr_match after the reported failure.\n", HOST_enp0s8_IPV6_ADDR);
         }
     }
 

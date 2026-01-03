@@ -1,5 +1,5 @@
-// dtn_routing.c: Implementation of contact-based routing with time-variant contact management for DTN networks
-// Copyright (C) 2025 Michael Karpov
+// dtn_routing.c: Implementation of Contact Graph Routing with time-variant contact management for DTN networks
+// Copyright (C) 2025 Michael Karpov & 2026 Cèlia Torras
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -26,7 +26,6 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
-#define TARGET_DTN_NODE_ADDR "fd00::2"
 #define CURR_NODE_ADDR "fd00:01::2"
 #define MAX_LENGTH 5000
 
@@ -200,7 +199,6 @@ bool dtn_routing_update_contacts(Routing_Function* routing) {
     return ret;
 }
 
-// no changes needed
 bool dtn_routing_is_dtn_destination(Routing_Function* routing, const ip6_addr_t* dest_ip_in) {
     if (!routing || !dest_ip_in) {
         return false;
@@ -228,19 +226,7 @@ bool dtn_routing_is_dtn_destination(Routing_Function* routing, const ip6_addr_t*
         }
         contact = contact->next;
     }
-    
-    ip6_addr_t target_dtn_node;
-    if (!ip6addr_aton(TARGET_DTN_NODE_ADDR, &target_dtn_node)) {
-        fprintf(stderr, "DTN Routing: Failed to parse TARGET_DTN_NODE_ADDR %s!\n", TARGET_DTN_NODE_ADDR);
-        return false;
-    }
-    
-#if LWIP_IPV6_SCOPES
-    ip6_addr_set_zone(&local_dest_ip, IP6_NO_ZONE);
-    ip6_addr_set_zone(&target_dtn_node, IP6_NO_ZONE);
-#endif
-    
-    return ip6_addr_cmp(&local_dest_ip, &target_dtn_node);
+    return false;
 }
    
 int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_t* plen, u8_t* hoplim, ip6_addr_t* dest_ip, ip6_addr_t* sender_ip, ip6_addr_t* next_hop_ip) {
@@ -249,7 +235,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         return 0;
     }
     
-    //no changes
     if (!dtn_routing_is_dtn_destination(routing, dest_ip)) {
         char dest_addr_str_err[IP6ADDR_STRLEN_MAX];
         ip6addr_ntoa_r(dest_ip, dest_addr_str_err, sizeof(dest_addr_str_err));
@@ -259,7 +244,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     }
 
     ip6_addr_t local;
-    // local node id to address format instead of string
     unsigned char tmpbuf[16];
     if (inet_pton(AF_INET6, CURR_NODE_ADDR , tmpbuf) != 1) {
         fprintf(stderr, "inet_pton local address failed\n");
@@ -270,7 +254,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         local.addr[i] = ntohl(w);
     }
 
-    char dst_s[INET6_ADDRSTRLEN];  //we need the destination node in string format to convert into node id
+    char dst_s[INET6_ADDRSTRLEN]; 
     char sender_s[INET6_ADDRSTRLEN];
 
     if (ip6_addr_to_str(dest_ip, dst_s, sizeof(dst_s)) != 0) { 
@@ -280,16 +264,11 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         fprintf(stderr, "ip6_addr_to_str sender failed\n"); return 1; 
     }
 
-    printf("local: %s\n", CURR_NODE_ADDR);
-    printf("dst: %s\n", dst_s);
-    printf("sender: %s\n", sender_s);
-
     Py_Initialize();
     if (!Py_IsInitialized()) {
         fprintf(stderr, "Python not initialized\n");
         return 0;
     }
-    fprintf(stderr, "[DBG] Python initialized OK\n");
 
     PyObject *sys_path = PySys_GetObject("path");
     PyObject *py_pth = PyUnicode_FromString("py_cgr");
@@ -302,11 +281,8 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         PyErr_Print();
         Py_Finalize();
         return 0;
-    } else {
-        fprintf(stderr, "[DBG] Imported module OK: %p\n", (void*)pModule);
     }
     
-    // to use python functions we need time in double format
     double curr_time_load = ((double)routing->base_time)/1000;
 
     PyObject *py_cp_load = PyObject_GetAttrString(pModule, "cp_load");
@@ -327,16 +303,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_Finalize();
         return 0;
     }
-    PyObject *repr_cp = PyObject_Repr(contact_plan);
-    if (repr_cp) {
-        const char *s = PyUnicode_AsUTF8(repr_cp);
-        fprintf(stderr, "[DBG] contact_plan repr: %s\n", s ? s : "<NULL>");
-        Py_DECREF(repr_cp);
-    } else {
-        fprintf(stderr, "[DBG] contact_plan repr failed\n");
-        PyErr_Print();
-    }
-
     Py_DECREF(args_load);
 
     // cgr_yen
@@ -363,21 +329,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_Finalize();
         return 0;
     }
-    PyObject *repr_r = PyObject_Repr(routes);
-    if (repr_r) {
-        const char *sr = PyUnicode_AsUTF8(repr_r);
-        fprintf(stderr, "[DBG] routes repr: %s\n", sr ? sr : "<NULL>");
-        Py_DECREF(repr_r);
-    } else {
-        fprintf(stderr, "[DBG] routes repr failed\n");
-        PyErr_Print();
-    }
-    if (PyList_Check(routes)) {
-        fprintf(stderr, "[DBG] routes length: %ld\n", PyList_Size(routes));
-    } else {
-        fprintf(stderr, "[DBG] routes is not a list (type=%s)\n", routes->ob_type->tp_name);
-    }
-
     Py_DECREF(args_yen);
 
     // ipv6_packet
@@ -389,7 +340,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     if (v_tc_fl != NULL) v_tc_fl_val = *v_tc_fl;
     if (plen != NULL) plen_val = *plen;
 
-    long deadline = hoplim_val*10000;                      //multiplying factor to transform to lifetime?
+    long deadline = hoplim_val*10000;                 //multiplying factor
     uint8_t tc = (uint8_t)((v_tc_fl_val >> 20) & 0xFF); // traffic class (8 bits) 
     uint8_t dscp = (uint8_t)(tc >> 2);              // DSCP = TC[7:2] (6 bits)
 
@@ -412,19 +363,9 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_Finalize();
     return 0;
     }
-    PyObject *repr_pkt = PyObject_Repr(ipv6pkt);
-    if (repr_pkt) {
-        const char *sp = PyUnicode_AsUTF8(repr_pkt);
-        fprintf(stderr, "[DBG] ipv6pkt repr: %s\n", sp? sp : "<NULL>");
-        Py_DECREF(repr_pkt);
-    } else {
-        fprintf(stderr, "[DBG] ipv6pkt repr failed\n");
-        PyErr_Print();
-    }
-
     Py_DECREF(args_pkt);
 
-    /* ------------------ fwd_candidate ------------------ */
+    // fwd_candidate
     PyObject *excluded_nodes = PyList_New(0);
     PyObject *args_fwd = PyTuple_New(6);
     PyTuple_SetItem(args_fwd, 0, PyFloat_FromDouble(curr_time));
@@ -434,50 +375,12 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     PyTuple_SetItem(args_fwd, 4, routes);
     PyTuple_SetItem(args_fwd, 5, excluded_nodes);
     PyObject *candidates = PyObject_CallObject(py_fwd_candidate, args_fwd);
-    if (candidates) {
-    PyObject *repr_c = PyObject_Repr(candidates);
-    const char *sc = PyUnicode_AsUTF8(repr_c);
-    fprintf(stderr, "[DBG] candidates repr: %s\n", sc? sc : "<NULL>");
-    Py_XDECREF(repr_c);
-        if (PyList_Check(candidates)) {
-            long n = PyList_Size(candidates);
-            fprintf(stderr, "[DBG] candidates length: %ld\n", n);
-            for (long i = 0; i < n; ++i) {
-                PyObject *it = PyList_GetItem(candidates, i); // borrowed
-                PyObject *repr_it = PyObject_Repr(it);
-                const char *si = PyUnicode_AsUTF8(repr_it);
-                fprintf(stderr, "[DBG] candidate[%ld] repr: %s\n", i, si? si : "<NULL>");
-                Py_XDECREF(repr_it);
-
-                // try to print next_node attr if present
-                PyObject *pNextNode = PyObject_GetAttrString(it, "next_node");
-                if (pNextNode) {
-                    if (pNextNode == Py_None) {
-                        fprintf(stderr, "[DBG] candidate[%ld] next_node = None\n", i);
-                    } else if (PyLong_Check(pNextNode)) {
-                        fprintf(stderr, "[DBG] candidate[%ld] next_node = %ld\n", i, PyLong_AsLong(pNextNode));
-                    } else {
-                        fprintf(stderr, "[DBG] candidate[%ld] next_node has non-int type (%s)\n", i, pNextNode->ob_type->tp_name);
-                    }
-                    Py_DECREF(pNextNode);
-                } else {
-                    PyErr_Clear();
-                    fprintf(stderr, "[DBG] candidate[%ld] has no next_node\n", i);
-                }
-            }
-        } else {
-            fprintf(stderr, "[DBG] candidates is not a list (type=%s)\n", candidates->ob_type->tp_name);
-        }
-    } else {
-        fprintf(stderr, "[DBG] candidates is NULL\n");
-        PyErr_Print();
-    }
     Py_DECREF(args_fwd);
 
     //we check the next hop for the best route
     if (PyList_Check(candidates) && PyList_Size(candidates) > 0) {
-        PyObject *first = PyList_GetItem(candidates, 0); /* borrowed reference */
-        PyObject *pNextNode = PyObject_GetAttrString(first, "next_node"); /* new ref or NULL */
+        PyObject *first = PyList_GetItem(candidates, 0);
+        PyObject *pNextNode = PyObject_GetAttrString(first, "next_node");
         if (pNextNode) {
             if (pNextNode == Py_None) {
                 printf("Next hop: None\n");
@@ -530,7 +433,6 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     return 1;
 }
 
-//AUX FUNCTIONS FOR CGR AND LOAD CONTACTS FROM FILE
 int ip6_addr_to_str(const ip6_addr_t *a, char *buf, size_t buflen) {
     if (!a || !buf) return -1;
     unsigned char tmp[16];
@@ -611,9 +513,8 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
         char *p = line;
         while (*p && isspace((unsigned char)*p)) p++;
 
-        if (*p == '\0' || *p == '#') continue; // ignorar comentaris i línies buides
+        if (*p == '\0' || *p == '#') continue;
 
-        // tokenització simplificada: copiem tokens a un array
         char tok[8][64];
         int ntok = 0;
         char *s = p;
@@ -630,9 +531,8 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
             ntok++;
         }
 
-        if (ntok < 5) continue; // no hi ha prou informació
+        if (ntok < 5) continue; 
 
-        // Busquem els primers dos tokens que comencin amb '+'
         char *start_tok = NULL, *end_tok = NULL;
         for (int i = 0; i < ntok; ++i) {
             if (tok[i][0] == '+') {
@@ -641,10 +541,8 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
             }
         }
 
-        // Busquem els dos primers tokens numèrics curts (from,to)
         char *from_tok = NULL, *to_tok = NULL;
         for (int i = 0; i < ntok; ++i) {
-            // considerem numèric si tots els caràcters són dígits i longitud <= 3
             bool all_digits = true;
             size_t L = strlen(tok[i]);
             if (L == 0 || L > 3) continue;
@@ -656,7 +554,6 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
         }
 
         if (!start_tok || !end_tok || !from_tok || !to_tok) {
-            // línia incompleta, la ignorem
             continue;
         }
 
@@ -667,7 +564,6 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
         u32_t start_ms = (u32_t)start_sec * 1000;
         u32_t end_ms   = (u32_t)end_sec   * 1000;
 
-        // converteix tokens a node ids segons la regla token -> atoi(token) + 1
         long from_node = (long) atoi(from_tok);
         long to_node = (long) atoi(to_tok);
 
@@ -691,7 +587,6 @@ int dtn_routing_load_contacts(Routing_Function* routing, const char* filename) {
             ip6_addr_set_zone(&to_ip6, IP6_NO_ZONE);
         #endif
 
-        // Afegim el contacte: node_addr = 'to', next_hop = 'from'
         int added = dtn_routing_add_contact(routing, &to_ip6, &from_ip6, start_ms + routing->base_time, end_ms + routing->base_time, true);
         if (added) loaded++;
     }

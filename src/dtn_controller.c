@@ -1,5 +1,5 @@
 // dtn_controller.c: Implementation of the DTN Controller that processes incoming packets and manages store-and-forward operations
-// Copyright (C) 2025 Michael Karpov
+// Copyright (C) 2025 Michael Karpov & 2025 Cèlia Torras
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
