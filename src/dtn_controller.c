@@ -198,11 +198,7 @@ static bool is_next_hop_active_contact(Routing_Function *routing, ip6_addr_t *ne
         if (ip_match)
         {
             bool time_ok = (current_time >= contact->start_time_ms && current_time <= contact->end_time_ms);
-
-            if (contact->is_dtn_node && time_ok)
-            {
-                return true;
-            }
+            if (time_ok) return true;
         }
         contact = contact->next;
     }
