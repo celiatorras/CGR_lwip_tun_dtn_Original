@@ -219,9 +219,6 @@ class ipv6_packet:
         # computed parameters
         self.sender = sender
         #self.evc = max(size*1.03, 100)
-        
-        print(f"[PYDBG] ipv6_paquet created: dst={self.dst} size={self.size} deadline={self.deadline} priority={self.priority}", flush=True, file=sys.stderr)
-
 
 # load contact plan file with the format:
 # a contact +<start> +<end> <from> <to> <rate> <range>
@@ -542,12 +539,6 @@ def fwd_candidate(curr_time, curr_node, contact_plan, ipv6_packet, routes, exclu
                     print("not candidate: contact in route tx to current node")
                 continue
                 
-        # we discard routes not active right now
-        first = route.hops[0]
-        if not (first.start <= curr_time < first.end):
-            if debug:
-                print(f"not candidate: first contact inactive now ")
-            continue
 
         # 3.2.6.9 d) calculate eto and if it is later than 1st contact end time, ignore
         adjusted_start_time = max(curr_time, route.hops[0].start)

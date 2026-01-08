@@ -26,7 +26,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
-#define CURR_NODE_ADDR "fd00:01::2"
+#define CURR_NODE_ADDR "fd00::2"
 #define MAX_LENGTH 5000
 
 // necessary changes made
@@ -264,11 +264,17 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         fprintf(stderr, "ip6_addr_to_str sender failed\n"); return 1; 
     }
 
+    // [DBG] Prints afegits de la versió 1
+    printf("local: %s\n", CURR_NODE_ADDR);
+    printf("dst: %s\n", dst_s);
+
     Py_Initialize();
     if (!Py_IsInitialized()) {
         fprintf(stderr, "Python not initialized\n");
         return 0;
     }
+    // [DBG]
+    fprintf(stderr, "[DBG] Python initialized OK\n");
 
     PyObject *sys_path = PySys_GetObject("path");
     PyObject *py_pth = PyUnicode_FromString("py_cgr");
@@ -281,6 +287,9 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         PyErr_Print();
         Py_Finalize();
         return 0;
+    } else {
+        // [DBG]
+        fprintf(stderr, "[DBG] Imported module OK: %p\n", (void*)pModule);
     }
     
     double curr_time_load = ((double)routing->base_time)/1000;
@@ -303,6 +312,18 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_Finalize();
         return 0;
     }
+    
+    // [DBG] Inspection of contact_plan
+    PyObject *repr_cp = PyObject_Repr(contact_plan);
+    if (repr_cp) {
+        const char *s = PyUnicode_AsUTF8(repr_cp);
+        fprintf(stderr, "[DBG] contact_plan repr: %s\n", s ? s : "<NULL>");
+        Py_DECREF(repr_cp);
+    } else {
+        fprintf(stderr, "[DBG] contact_plan repr failed\n");
+        PyErr_Print();
+    }
+
     Py_DECREF(args_load);
 
     // cgr_yen
@@ -310,6 +331,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     long dest_node_id = ipv6_to_nodeid(dst_s);
     double curr_time = ((double)sys_now())/1000;
 
+    // [DBG]
     fprintf(stderr, "[DBG] call cgr_yen: curr_node_id=%ld dest_node_id=%ld curr_time=%f\n",
         curr_node_id, dest_node_id, curr_time);
 
@@ -329,6 +351,23 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_Finalize();
         return 0;
     }
+
+    // [DBG] Inspection of routes
+    PyObject *repr_r = PyObject_Repr(routes);
+    if (repr_r) {
+        const char *sr = PyUnicode_AsUTF8(repr_r);
+        fprintf(stderr, "[DBG] routes repr: %s\n", sr ? sr : "<NULL>");
+        Py_DECREF(repr_r);
+    } else {
+        fprintf(stderr, "[DBG] routes repr failed\n");
+        PyErr_Print();
+    }
+    if (PyList_Check(routes)) {
+        fprintf(stderr, "[DBG] routes length: %ld\n", PyList_Size(routes));
+    } else {
+        fprintf(stderr, "[DBG] routes is not a list (type=%s)\n", routes->ob_type->tp_name);
+    }
+
     Py_DECREF(args_yen);
 
     // ipv6_packet
@@ -340,7 +379,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
     if (v_tc_fl != NULL) v_tc_fl_val = *v_tc_fl;
     if (plen != NULL) plen_val = *plen;
 
-    long deadline = hoplim_val*10000;                 //multiplying factor
+    long deadline = hoplim_val*10000;                 //multiplying factor (Versió 2 logic)
     uint8_t tc = (uint8_t)((v_tc_fl_val >> 20) & 0xFF); // traffic class (8 bits) 
     uint8_t dscp = (uint8_t)(tc >> 2);              // DSCP = TC[7:2] (6 bits)
 
@@ -361,8 +400,20 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
         Py_DECREF(contact_plan);
         Py_DECREF(pModule);
         Py_Finalize();
-    return 0;
+        return 0;
     }
+
+    // [DBG] Inspection of ipv6pkt
+    PyObject *repr_pkt = PyObject_Repr(ipv6pkt);
+    if (repr_pkt) {
+        const char *sp = PyUnicode_AsUTF8(repr_pkt);
+        fprintf(stderr, "[DBG] ipv6pkt repr: %s\n", sp? sp : "<NULL>");
+        Py_DECREF(repr_pkt);
+    } else {
+        fprintf(stderr, "[DBG] ipv6pkt repr failed\n");
+        PyErr_Print();
+    }
+
     Py_DECREF(args_pkt);
 
     // fwd_candidate
@@ -379,7 +430,7 @@ int dtn_routing_get_dtn_next_hop(Routing_Function* routing, u32_t* v_tc_fl, u16_
 
     //we check the next hop for the best route
     if (PyList_Check(candidates) && PyList_Size(candidates) > 0) {
-        PyObject *first = PyList_GetItem(candidates, 0);
+        PyObject *first = PyList_GetItem(candidates, 0); /* borrowed reference */
         PyObject *pNextNode = PyObject_GetAttrString(first, "next_node");
         if (pNextNode) {
             if (pNextNode == Py_None) {
@@ -450,20 +501,17 @@ int ip6_addr_to_str(const ip6_addr_t *a, char *buf, size_t buflen) {
 long ipv6_to_nodeid(const char *ip6) {
 
     // Node 0 (id = 1)
-    if (strcmp(ip6, "fd00:01::1") == 0) return 01;
-    if (strcmp(ip6, "fd00:1::1") == 0) return 01;
+    if (strcmp(ip6, "fd00:01::1") == 0) return 1;
+    if (strcmp(ip6, "fd00:1::1") == 0) return 1;
 
     // Node 1 (id = 2)
-    if (strcmp(ip6, "fd00:01::2") == 0) return 10;
-    if (strcmp(ip6, "fd00:1::2") == 0) return 10;
-    if (strcmp(ip6, "fd00:12::1") == 0) return 12;
+    if (strcmp(ip6, "fd00::2") == 0) return 2;
 
     // Node 2 (id = 3)
-    if (strcmp(ip6, "fd00:12::2") == 0) return 21;
-    if (strcmp(ip6, "fd00:23::2") == 0) return 23;
+    if (strcmp(ip6, "fd00:22::2") == 0) return 3;
 
     // Node 3 (id = 4)
-    if (strcmp(ip6, "fd00:23::3") == 0) return 32;
+    if (strcmp(ip6, "fd00:33::2") == 0) return 4;
     
     return -1;
 }
@@ -472,12 +520,10 @@ int nodeid_to_ipv6(long node_id, ip6_addr_t *out) {
 
     const char *addr_txt = NULL;
     switch (node_id) {
-        case 01: addr_txt = "fd00:01::1"; break;
-        case 10: addr_txt = "fd00:01::2"; break;
-        case 12: addr_txt = "fd00:12::1"; break;
-        case 21: addr_txt = "fd00:12::2"; break;
-        case 23: addr_txt = "fd00:23::2"; break;
-        case 32: addr_txt = "fd00:23::3"; break;
+        case 1: addr_txt = "fd00:01::1"; break;
+        case 2: addr_txt = "fd00::2"; break;
+        case 3: addr_txt = "fd00:22::2"; break;
+        case 4: addr_txt = "fd00:33::2"; break;
         default: return -1;
     }
 
